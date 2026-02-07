@@ -344,17 +344,13 @@ async function startNavigation(destination) {
                 lineCap: 'round'
             }).addTo(state.map);
 
+            // Start Navigation
             updateHUD(route.duration, route.distance);
-
-            // Log routing mode if intelligent
-            if (state.currentRequest && state.currentRequest.routingMode === 'INTELLIGENT') {
-                console.log('🚨 INTELLIGENT ROUTING ACTIVE: Preferring wider roads, avoiding narrow lanes and congested areas');
-            }
 
             animateMovement();
         }
     } catch (e) {
-        console.error("Routing failed", e);
+        // Silently fail or implement production logging
     }
 }
 
