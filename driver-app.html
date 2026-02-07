@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RapidAid Captain | Emergency Response</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --gray: #64748b;
+            --white: #ffffff;
+            --glass: rgba(255, 255, 255, 0.9);
+            --glass-dark: rgba(15, 23, 42, 0.9);
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+            background: var(--dark);
+        }
+
+        #map-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #f8fafc;
+        }
+
+        #map {
+            width: 160% !important;
+            height: 160% !important;
+            position: absolute;
+            top: -30%;
+            left: -30%;
+            z-index: 1;
+            transition: transform 0.1s linear;
+            /* Fast but smooth for nav */
+        }
+
+        /* Verification Screen */
+        #verification-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f8fafc;
+            z-index: 5000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .verify-card {
+            max-width: 500px;
+            margin: 20px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            width: 100%;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 800;
+            font-size: 11px;
+            color: var(--gray);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #f1f5f9;
+            border-radius: 16px;
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: #eff6ff;
+        }
+
+        .upload-box {
+            border: 2px dashed #e2e8f0;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            color: var(--gray);
+            cursor: pointer;
+            margin-top: 5px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .upload-box:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+        }
+
+        /* Home Screen UI - Now Bottom Docked */
+        .home-center {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .status-card {
+            background: white;
+            padding: 25px 30px 40px 30px;
+            border-radius: 32px 32px 0 0;
+            box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            pointer-events: auto;
+            border: 1px solid #f1f5f9;
+            transform: translateY(0);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .drag-handle {
+            width: 40px;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            margin: 0 auto 15px auto;
+        }
+
+        .search-btn {
+            width: 100%;
+            height: 60px;
+            background: #f1f5f9;
+            color: var(--dark);
+            border: none;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .search-btn.active {
+            background: var(--dark);
+            color: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        .search-btn:active {
+            transform: scale(0.98);
+        }
+
+        .status-card {
+            background: white;
+            padding: 35px 30px;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 380px;
+            margin: 0 auto;
+            border: 1px solid #f1f5f9;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #94a3b8;
+            position: relative;
+        }
+
+        .search-btn.active .status-dot {
+            background: var(--success);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+            animation: status-pulse 2s infinite;
+        }
+
+        /* Patient Location Marker */
+        .patient-pulse {
+            width: 24px;
+            height: 24px;
+            background: rgba(239, 68, 68, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .patient-dot {
+            width: 12px;
+            height: 12px;
+            background: var(--danger);
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .search-status {
+            margin-top: 25px;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* UI Elements Helper */
+        .top-nav {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1001;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .mini-card {
+            background: var(--glass-dark);
+            backdrop-filter: blur(12px);
+            padding: 10px 16px;
+            border-radius: 50px;
+            color: white;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        /* Bottom Sheet */
+        .bottom-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            background: white;
+            border-radius: 32px 32px 0 0;
+            padding: 30px;
+            transform: translateY(100%);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        /* Navigation HUD */
+        #nav-hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 2000;
+            background: var(--primary);
+            color: white;
+            border-radius: 24px;
+            padding: 20px;
+            display: none;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        /* SOS Button */
+        .sos-btn {
+            position: absolute;
+            right: 20px;
+            bottom: 300px;
+            z-index: 1000;
+            width: 60px;
+            height: 60px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        /* Low Network Warning */
+        #network-warning {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--warning);
+            color: var(--dark);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: 800;
+            z-index: 6000;
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-ghost {
+            background: #f1f5f9;
+            color: var(--gray);
+        }
+
+        /* Trip Controls Bar */
+        #trip-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 25px;
+            z-index: 2000;
+            border-radius: 24px 24px 0 0;
+            display: none;
+            box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        /* OTP Overlay Update */
+        #otp-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--glass-dark);
+            backdrop-filter: blur(10px);
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="network-warning">📡 LOW NETWORK - LOCATION SYNC DELAYED</div>
+    <div id="map-wrapper">
+        <div id="map"></div>
+    </div>
+
+    <!-- 1. Mandatory Verification Screen -->
+    <div id="verification-overlay">
+        <div class="verify-card">
+            <h1 style="margin: 0; font-size: 24px;">Captain Onboarding</h1>
+            <p style="color: var(--gray); margin: 5px 0 30px 0;">Verify your credentials to start receiving emergency
+                calls.</p>
+
+            <div id="verify-form">
+                <div class="form-group">
+                    <label>Driver Full Name</label>
+                    <input type="text" id="v-name" placeholder="As per Govt ID">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>DL Number</label>
+                        <input type="text" id="v-dl" placeholder="KA-00-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>Aadhaar / ID</label>
+                        <input type="number" id="v-id" placeholder="12-digit number">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Ambulance Registration</label>
+                    <input type="text" id="v-reg" placeholder="KA-01-MJ-2024">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Ambulance Type</label>
+                        <select id="v-type">
+                            <option>BLS (Basic Life Support)</option>
+                            <option>ALS (Advanced Life Support)</option>
+                            <option>ICU (Critical Care)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Operator Name</label>
+                        <input type="text" id="v-operator" placeholder="Hospital/Agency">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Required Documents (Photos)</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                        <div class="upload-box" onclick="this.innerHTML='✅ DL Added'">DL</div>
+                        <div class="upload-box" onclick="this.innerHTML='✅ RC Added'">RC</div>
+                        <div class="upload-box" onclick="this.innerHTML='✅ Profile Added'">Photo</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top: 10px;" onclick="submitVerification()">SUBMIT FOR
+                    APPROVAL</button>
+            </div>
+
+            <!-- Approval Status (Hidden initially) -->
+            <div id="verify-status" style="display: none; text-align: center; padding: 40px 0;">
+                <div style="font-size: 60px; margin-bottom: 20px;" id="status-icon">⏳</div>
+                <h2 id="status-title">Under Verification</h2>
+                <p id="status-desc" style="color: var(--gray);">Our team is validating your documents. You will be
+                    notified within 24 hours.</p>
+                <div id="status-retry" style="display: none;">
+                    <button class="btn btn-ghost" onclick="location.reload()">RE-SUBMIT DOCUMENTS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Home Screen UI -->
+    <div class="top-nav">
+        <div class="mini-card" id="user-badge" style="display: none;">
+            <div
+                style="width: 24px; height: 24px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">
+                SW</div>
+            <span id="display-name">Sarah Wilson</span>
+        </div>
+        <div class="mini-card" style="pointer-events: auto; cursor: pointer;" onclick="toggleOnlineFlow()">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--success);" id="online-indicator">
+            </div>
+            <span id="online-text">ONLINE</span>
+        </div>
+    </div>
+
+    <div class="home-center" id="home-ui" style="display: none;">
+        <div class="status-card">
+            <div class="drag-handle"></div>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 25px;">
+                <div>
+                    <div id="system-status-main" style="font-weight: 800; font-size: 24px; color: var(--dark);">Offline
+                    </div>
+                    <div id="system-status-sub"
+                        style="font-size: 13px; color: var(--gray); font-weight: 600; margin-top: 2px;">Ready for
+                        emergency calls</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 10px; font-weight: 800; color: var(--gray); text-transform: uppercase;">
+                        Earnings</div>
+                    <div style="font-size: 18px; font-weight: 800; color: var(--dark);">$0.00</div>
+                </div>
+            </div>
+
+            <button class="search-btn" id="master-toggle" onclick="toggleOnlineFlow()">
+                <div class="status-dot"></div>
+                <span id="status-text" style="z-index: 1;">GO ONLINE</span>
+            </button>
+
+            <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #f1f5f9;">
+                <div>
+                    <div
+                        style="font-size: 10px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.8px;">
+                        Today's Shift</div>
+                    <div style="font-size: 15px; font-weight: 800; color: var(--dark); margin-top: 2px;">00:00 <span
+                            style="font-size: 11px; color: var(--gray); font-weight: 400;">hrs</span></div>
+                </div>
+                <div style="text-align: right;">
+                    <div
+                        style="font-size: 10px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: 0.8px;">
+                        Target</div>
+                    <div style="font-size: 15px; font-weight: 800; color: var(--dark); margin-top: 2px;">12 <span
+                            style="font-size: 11px; color: var(--gray); font-weight: 400;">left</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Incoming Emergency Found -->
+    <div class="bottom-sheet" id="request-sheet">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+            <span
+                style="background: #fef2f2; color: var(--danger); padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800;">🚨
+                EMERGENCY FOUND</span>
+            <div style="text-align: right; font-weight: 800; color: var(--primary);">2.4 km away</div>
+        </div>
+        <div style="margin-bottom: 25px;">
+            <p style="color: var(--gray); font-size: 12px; margin: 0;">PICKUP LOCATION</p>
+            <h2 style="margin: 5px 0 15px 0; font-size: 20px;">124 Brigade Road, Bangalore</h2>
+            <div style="background: #f8fafc; padding: 15px; border-radius: 16px;">
+                <p style="margin: 0; font-size: 14px; font-weight: 600;">Patient Condition:</p>
+                <p style="margin: 5px 0 0 0; color: var(--gray); font-size: 13px;">Adult Male • Severe Respiratory
+                    Distress • BLS Required</p>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px;">
+            <button class="btn btn-ghost" onclick="skipRequest()">SKIP</button>
+            <button class="btn btn-success" onclick="acceptEmergency()">ACCEPT & NAVIGATE</button>
+        </div>
+    </div>
+
+    <!-- 4. Navigation HUD -->
+    <div id="nav-hud">
+        <div id="nav-eta" style="font-size: 36px; font-weight: 900;">-- min</div>
+        <div id="nav-dist" style="font-size: 14px; opacity: 0.8; font-weight: 600;">-- km to patient</div>
+    </div>
+
+    <div class="sos-btn" id="sos-btn" onclick="triggerPanic()">SOS</div>
+
+    <!-- 5. Trip Controls -->
+    <div id="trip-bar">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <button class="mini-card" style="background: #f1f5f9; color: var(--dark); border: none;"
+                onclick="callPatient()">📞 CALL PATIENT</button>
+            <button class="mini-card" style="background: #f1f5f9; color: var(--dark); border: none;"
+                onclick="callHospital()">🏥 HOSPITAL</button>
+        </div>
+        <button class="btn btn-primary" id="trip-btn" onclick="handleTripAction()">ARRIVED AT PICKUP</button>
+    </div>
+
+    <!-- OTP Verification Overlay -->
+    <div id="otp-overlay">
+        <div class="verify-card" style="text-align: center;">
+            <h2 style="margin: 0;">Patient Pickup OTP</h2>
+            <p style="color: var(--gray); margin: 5px 0 0 0;">Enter the 4-digit code from patient UI</p>
+
+            <div style="display: flex; gap: 12px; justify-content: center; margin: 30px 0;">
+                <input type="text" inputmode="numeric" class="otp-input" maxlength="1"
+                    style="width: 60px; height: 70px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 32px; font-weight: 800; text-align: center;">
+                <input type="text" inputmode="numeric" class="otp-input" maxlength="1"
+                    style="width: 60px; height: 70px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 32px; font-weight: 800; text-align: center;">
+                <input type="text" inputmode="numeric" class="otp-input" maxlength="1"
+                    style="width: 60px; height: 70px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 32px; font-weight: 800; text-align: center;">
+                <input type="text" inputmode="numeric" class="otp-input" maxlength="1"
+                    style="width: 60px; height: 70px; border: 2px solid #e2e8f0; border-radius: 16px; font-size: 32px; font-weight: 800; text-align: center;">
+            </div>
+
+            <button class="btn btn-primary" onclick="verifyPickupOTP()">VERIFY & START TRIP</button>
+            <button class="btn btn-ghost" style="margin-top: 10px;" onclick="closeOTP()">CANCEL</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="driver-app.js"></script>
+</body>
+
+</html>
