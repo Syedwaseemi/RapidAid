@@ -338,22 +338,17 @@ async function fetchRouteAndTrack() {
     const start = [state.startPos[1], state.startPos[0]];
     const end = [state.destination[1], state.destination[0]];
 
-    console.log("🚨 DEBUG: Fetching route from", start, "to", end);
-
     try {
         // 🚨 INTELLIGENT ROUTING: Prefer wider roads, avoid residential/narrow lanes
         // Using OSRM's exclude parameter where available, or fallback to standard routing
         // In production, you'd use custom routing profiles or prefer "primary" and "secondary" road types
         const url = `https://router.project-osrm.org/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson&continue_straight=false`;
 
-        console.log("🚨 DEBUG: OSRM URL -", url);
         const response = await fetch(url);
         const data = await response.json();
-        console.log("🚨 DEBUG: Route response received", data);
 
         if (data.routes && data.routes.length > 0) {
             state.routeGeometry = data.routes[0].geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
-            console.log("🚨 DEBUG: Route has", state.routeGeometry.length, "points");
 
             // Add the polyline to the map for tracking visibility
             if (state.polyline) state.map.removeLayer(state.polyline);
@@ -373,11 +368,9 @@ async function fetchRouteAndTrack() {
             // Broadcast the request with Special Routing Metadata
             broadcastRequest();
 
-            console.log("🚨 DEBUG: Starting animation with", state.routeGeometry.length, "points");
             beginRoadConstrainedAnimation();
         }
     } catch (e) {
-        console.error("🚨 DEBUG: Route fetch ERROR -", e);
         log("Route fetch failed: " + e.message);
     }
 }
@@ -392,10 +385,8 @@ function beginRoadConstrainedAnimation() {
     state.isTracking = true;
 
     let progress = 0;
-    const step = 0.0005; // Realistic speed: ~3-4 minutes to complete
+    const step = 0.00005; // Highly realistic speed for emergency vehicle in urban traffic (~5-6 mins)
     let lastAngle = 0;
-
-    console.log("🚨 DEBUG: Route geometry length:", state.routeGeometry.length);
 
     // Initialize lastAngle to the first segment's orientation
     if (state.routeGeometry.length > 1) {
@@ -404,17 +395,36 @@ function beginRoadConstrainedAnimation() {
         lastAngle = Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat) * (180 / Math.PI);
     }
 
-    console.log("🚨 DEBUG: Starting animation frame loop...");
-
     function frame() {
         if (progress > 1 || !state.isTracking) {
             state.isTracking = false;
+
+            // Remove the route line completely when arrived
+            if (state.polyline) {
+                state.map.removeLayer(state.polyline);
+                state.polyline = null;
+            }
+
+            console.log("🏁 DISPATCH: Ambulance has reached the patient.");
             return;
         }
 
-        const idx = Math.floor(progress * (state.routeGeometry.length - 1));
+        // --- Navigation Mode Interpolation ---
+        const totalPoints = state.routeGeometry.length - 1;
+        const currentProgress = progress * totalPoints;
+        const idx = Math.floor(currentProgress);
+        const subProgress = currentProgress - idx;
+
         const current = state.routeGeometry[idx];
         const next = state.routeGeometry[idx + 1] || current;
+
+        // 🚑 Interpolate Position for smooth movement
+        const interpLat = current.lat + (next.lat - current.lat) * subProgress;
+        const interpLng = current.lng + (next.lng - current.lng) * subProgress;
+        const interpPos = [interpLat, interpLng];
+
+        // Move marker smoothly
+        state.ambulanceMarker.setLatLng(interpPos);
 
         // Target Angle from geometry
         let targetAngle = Math.atan2(next.lng - current.lng, next.lat - current.lat) * (180 / Math.PI);
@@ -427,9 +437,6 @@ function beginRoadConstrainedAnimation() {
         const smoothAngle = lastAngle + (targetAngle - lastAngle) * 0.04;
         lastAngle = smoothAngle;
 
-        // Move marker strictly along the road geometry points
-        state.ambulanceMarker.setLatLng([current.lat, current.lng]);
-
         // Apply Smooth Rotation
         const el = state.ambulanceMarker.getElement();
         if (el) {
@@ -437,6 +444,18 @@ function beginRoadConstrainedAnimation() {
             if (wrapper) {
                 wrapper.style.transform = `rotate(${smoothAngle}deg)`;
             }
+        }
+
+        // 🚨 DYNAMIC ROUTE LINE: Consuming effect (matched with Driver app)
+        if (state.polyline) {
+            // Path starts exactly at ambulance and goes to the END of route
+            const remainingRoute = [interpPos, ...state.routeGeometry.slice(idx + 1)];
+            state.polyline.setLatLngs(remainingRoute);
+
+            // Fade out as we get closer
+            state.polyline.setStyle({
+                opacity: Math.max(0.2, (1 - progress) * 0.8)
+            });
         }
 
         progress += step;

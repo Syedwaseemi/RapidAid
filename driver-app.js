@@ -367,7 +367,7 @@ function animateMovement() {
     if (state.animating) return;
     state.animating = true;
     let progress = 0;
-    const step = 0.0005; // Realistic speed: ~3-4 minutes (was 0.012)
+    const step = 0.00005; // Highly realistic speed for emergency vehicle in urban traffic (~5-6 mins)
 
     let lastAngle = 0;
     if (state.routeGeometry.length > 1) {
