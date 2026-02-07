@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RapidAid | Professional Dispatch</title>
+    <title> | Professional Dispatch</title>
     <!-- Step 1: Load Leaflet.js via CDN -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
@@ -176,12 +176,17 @@
             <div class="status-badge">
                 <div class="ambulance-light-mini"></div> Live Dispatch Active
             </div>
-            <h1 class="title">Road-Geometry Tracking</h1>
-            <p class="subtitle">Ambulance is following real street paths. Routing line is hidden for a clean view.</p>
+            <h1 class="title">🚨 Intelligent Emergency Dispatch</h1>
+            <p class="subtitle">Special Routing: Wide roads prioritized • Narrow lanes avoided • School/market zones
+                bypassed</p>
 
             <div id="log-output"
-                style="font-size: 11px; background: #f1f5f9; padding: 8px; border-radius: 8px; font-family: monospace; color: #475569; border-left: 3px solid var(--primary); margin-bottom: 12px;">
-                Initializing secure connection...
+                style="font-size: 11px; background: #0f172a; padding: 12px; border-radius: 10px; font-family: 'JetBrains Mono', monospace; color: #cbd5e1; border-left: 4px solid var(--primary); margin-bottom: 12px; line-height: 1.4; transition: all 0.3s ease;">
+                Connecting to Medical Command...
+            </div>
+            <div id="search-ticker"
+                style="font-size: 10px; font-weight: 800; color: #64748b; text-align: center; letter-spacing: 0.1em; text-transform: uppercase; transition: all 0.3s ease; padding: 8px; border-radius: 8px; background: rgba(100, 116, 139, 0.1);">
+                SEARCHING PHASE 1: LOCAL UNITS
             </div>
 
             <button class="btn" style="background: #1e293b;" onclick="openCaptainPortal()">👨‍✈️ Captain Registration
